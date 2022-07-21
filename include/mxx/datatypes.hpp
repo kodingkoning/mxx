@@ -546,8 +546,8 @@ template <typename Derived>
 class recursive_processor {
 private:
     template <typename M>
-    void process_one(M&& m) {
-        static_cast<Derived*>(this)->process(std::forward<M>(m));
+    void process_one(M&& mmm) {
+        static_cast<Derived*>(this)->process(std::forward<M>(mmm));
     }
 
 public:
@@ -555,8 +555,8 @@ public:
     void process() {}
 
     template <typename M, typename... Members>
-    void process(M&& m, Members&&...vargs) {
-        process_one(std::forward<M>(m));
+    void process(M&& mmm, Members&&...vargs) {
+        process_one(std::forward<M>(mmm));
         process(std::forward<Members>(vargs)...);
     }
 
@@ -639,8 +639,8 @@ public:
     }
 
     template <typename M>
-    void process(M&& m) {
-        add_member(std::forward<T>(m));
+    void process(M&& mmm) {
+        add_member(std::forward<T>(mmm));
     }
 };
 
