@@ -545,18 +545,18 @@ struct datatype_builder<std::tuple<Types...> > {
 template <typename Derived>
 class recursive_processor {
 private:
-    template <typename M>
-    void process_one(M&& mmm) {
-        static_cast<Derived*>(this)->process(std::forward<M>(mmm));
+    template <typename MemberType>
+    void process_one(MemberType&& m) {
+        static_cast<Derived*>(this)->process(std::forward<MemberType>(m));
     }
 
 public:
     // end of recursion
     void process() {}
 
-    template <typename M, typename... Members>
-    void process(M&& mmm, Members&&...vargs) {
-        process_one(std::forward<M>(mmm));
+    template <typename MemberType, typename... Members>
+    void process(MemberType&& m, Members&&...vargs) {
+        process_one(std::forward<MemberType>(m));
         process(std::forward<Members>(vargs)...);
     }
 
@@ -572,14 +572,14 @@ class datatype_builder_base {
     // saves information about the members (displacement + MPI_Datatype)
     std::map<MPI_Aint, ::mxx::datatype> members;
 public:
-    template <typename M>
+    template <typename MemberType>
     void add_member_by_offset(size_t offset) {
         // get the underlying datatype
-        datatype dt = ::mxx::get_datatype<M>();
+        datatype dt = ::mxx::get_datatype<MemberType>();
 
         MPI_Aint displ = offset;
         // assert this is actually a member of the type T
-        MXX_ASSERT(0 <= displ && displ + sizeof(M) <= sizeof(T));
+        MXX_ASSERT(0 <= displ && displ + sizeof(MemberType) <= sizeof(T));
         // add to map
         members[displ] = std::move(dt);
     }
@@ -625,8 +625,8 @@ public:
     value_datatype_builder(const T& value) : base_type(), that(value) {}
 
     // custom add_member function which adds members by their offset to `&that`
-    template <typename M>
-    void add_member(const M& member) {
+    template <typename MemberType>
+    void add_member(const MemberType& member) {
         // get member displacement
         MPI_Aint t_adr, elem_adr;
 
@@ -635,19 +635,19 @@ public:
 
         // byte offset from beginning of tuple
         MPI_Aint displ = elem_adr - t_adr;
-        this->template add_member_by_offset<M>(displ);
+        this->template add_member_by_offset<MemberType>(displ);
     }
 
-    template <typename M>
-    void process(M&& mmm) {
-        add_member(std::forward<T>(mmm));
+    template <typename MemberType>
+    void process(MemberType&& m) {
+        add_member(std::forward<T>(m));
     }
 };
 
 // determine the offset of a `pointer to member` type without instantiation
-template <typename T, typename Base, typename M>
+template <typename T, typename Base, typename MemberType>
 typename std::enable_if<std::is_base_of<Base, T>::value, size_t>::type
-offset_of(M Base::* m) {
+offset_of(MemberType Base::* m) {
     return reinterpret_cast<size_t>(&(((T*)nullptr)->*m));
 }
 
@@ -657,16 +657,16 @@ private:
     typedef datatype_builder_base<T, static_datatype_builder<T>> base_type;
 public:
     // add members via "pointer to member" types
-    template <typename M>
-    void add_member(M T::*m) {
-        this->template add_member_by_offset<M>(offset_of<T, T, M>(m));
+    template <typename MemberType>
+    void add_member(MemberType T::*m) {
+        this->template add_member_by_offset<MemberType>(offset_of<T, T, MemberType>(m));
     }
 
     // support adding members of base classes
-    template <typename Base, typename M>
+    template <typename Base, typename MemberType>
     typename std::enable_if<std::is_base_of<Base, T>::value, void>::type
-    add_member(M Base::*m) {
-        this->template add_member_by_offset<M>(offset_of<T, Base, M>(m));
+    add_member(MemberType Base::*m) {
+        this->template add_member_by_offset<MemberType>(offset_of<T, Base, MemberType>(m));
     }
 };
 
